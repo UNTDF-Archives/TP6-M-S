@@ -9,9 +9,6 @@ __pycache__/
 Data/*.mat
 Data/registros_EIS.mat
 
-# Documentación interna / explicaciones
-teoria.md
-
 # Archivos de sistema y logs del IDE
 .system_generated/
 *.log

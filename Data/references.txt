@@ -1,0 +1,7 @@
+1. Ayllón, D., Gil-Pita, R. & Seoane, F. (2016). Detection and classification of measurement errors in bioimpedance spectroscopy. PLoS ONE. https://doi.org/10.1371/journal.pone.0156522
+
+2. De Lorenzo, A., Andreoli, A., Matthie, J., & Withers, P. (1997). Predicting body cell mass with bioimpedance by using theoretical methods: a technological review. Journal of Applied Physiology, 82.
+
+3. Dell’Osa, A.H., Concu, A., Dobarro, F., Felice, J.C. (2020). Bone Fracture Detection by Electrical Bioimpedance: Measurements in Ex-Vivo Mammalian Femur. In Bertemes-Filho, P. (ed.), *17th International Conference on Electrical Bioimpedance (ICEBI 2019)*. IFMBE Proceedings, vol 72, Springer, Singapore. https://doi.org/10.1007/978-981-13-3498-6_30
+
+4. Gonzalez-Correa, C A. (2019) Simplified geometrical adjustment of bioimpedance measured data to the complex plane with just three parameters. 3rd Latin-American Conference on Bioimpedance 3–5 October 2018, Manizales, Colombia. https://doi.org/10.1088/1742-6596/1272/1/012018

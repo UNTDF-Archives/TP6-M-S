@@ -1,0 +1,12 @@
+Data detail 
+ID001 al ID050: Free error measurement from Ayllón et al 2016
+ID051 al ID390: S2 error measurement from Ayllón et al 2016
+ID391 al ID610: S3 error measurement from Ayllón et al 2016
+ID611 al ID660: S4 error measurement from Ayllón et al 2016
+ID661 al ID1060: S5 error measurement from Ayllón et al 2016
+ID1061 al ID1200: S6 error measurement from Ayllón et al 2016
+ID1201 al ID1230: S7 error measurement from Ayllón et al 2016
+ID1231 al ID1232: DeLorenzo et al 1997
+ID1333 al ID1275: Experimental Measurement from Pedro Bertemes Filho
+ID1275 al ID1310: Experimental Measurement from Carlos Gonzalez Correa
+ID1311 al ID1457: Dell'Osa et al 2019.

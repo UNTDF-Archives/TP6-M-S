@@ -13,6 +13,27 @@ Aplicación interactiva y motor de cálculo numérico desarrollados para resolve
 
 ---
 
+
+
+### Inicializacion
+
+# 1. Crear entorno virtual
+```bash
+python3 -m venv .venv
+
+# 2. Activar entorno
+source .venv/bin/activate
+## (o en fish)
+source .venv/bin/activate.fish
+
+
+# 3. Instalar librerías del proyecto
+pip install streamlit plotly pandas scipy numpy
+
+# 4. Iniciar aplicación
+streamlit run app.py
+```
+
 ### Ejecución de la Aplicación
 
 Para iniciar el servidor interactivo:
@@ -20,6 +41,12 @@ Para iniciar el servidor interactivo:
 ```bash
 source .venv/bin/activate
 streamlit run app.py
+
+## O iniciar directamente con
+
+.venv/bin/streamlit run app.py
+.venv/bin/streamlit run app.py --server.address 127.0.0.1
+
 ```
 
 Luego abra en el navegador: [http://localhost:8501](http://localhost:8501)

@@ -212,7 +212,7 @@ if section == "1. Ecuación y Explorador Cole":
             yaxis=dict(scaleanchor="x", scaleratio=1, gridcolor=grid_color),
             xaxis=dict(gridcolor=grid_color)
         )
-        st.plotly_chart(fig_nyq, use_container_width=True)
+        st.plotly_chart(fig_nyq, width='stretch')
 
         # Bode Plots (Magnitud y Fase)
         fig_bode = make_subplots(
@@ -253,7 +253,7 @@ if section == "1. Ecuación y Explorador Cole":
             height=480,
             showlegend=False
         )
-        st.plotly_chart(fig_bode, use_container_width=True)
+        st.plotly_chart(fig_bode, width='stretch')
 
 
 # --- SECTION 2: SIMULACIÓN DE LOS 5 TEJIDOS (TABLA 1) ---
@@ -279,7 +279,7 @@ elif section == "2. Simulación de los 5 Tejidos (Tabla 1)":
     edited_df = st.data_editor(
         df_tissues,
         num_rows="dynamic",
-        use_container_width=True,
+        width="stretch",
         key="tissue_editor"
     )
 
@@ -369,7 +369,7 @@ elif section == "2. Simulación de los 5 Tejidos (Tabla 1)":
         xaxis=dict(gridcolor=grid_color),
         yaxis=dict(gridcolor=grid_color)
     )
-    st.plotly_chart(fig_multi_nyq, use_container_width=True)
+    st.plotly_chart(fig_multi_nyq, width='stretch')
 
     fig_multi_bode.update_xaxes(type="log", title_text="Frecuencia [Hz]", row=2, col=1, gridcolor=grid_color)
     fig_multi_bode.update_xaxes(type="log", row=1, col=1, gridcolor=grid_color)
@@ -383,7 +383,7 @@ elif section == "2. Simulación de los 5 Tejidos (Tabla 1)":
         height=560,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    st.plotly_chart(fig_multi_bode, use_container_width=True)
+    st.plotly_chart(fig_multi_bode, width='stretch')
 
 
 # --- SECTION 3: AJUSTE DE CURVAS DATASET ZENODO ---
@@ -532,7 +532,7 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                     yaxis=dict(scaleanchor="x", scaleratio=1, gridcolor=grid_color),
                     xaxis=dict(gridcolor=grid_color)
                 )
-                st.plotly_chart(fig_fit_nyq, use_container_width=True)
+                st.plotly_chart(fig_fit_nyq, width='stretch')
 
             with tab_bode:
                 fig_fit_bode = make_subplots(
@@ -578,7 +578,7 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                     paper_bgcolor=bg_color,
                     height=520
                 )
-                st.plotly_chart(fig_fit_bode, use_container_width=True)
+                st.plotly_chart(fig_fit_bode, width='stretch')
 
             with tab_res:
                 col_df, col_res_plt = st.columns([1, 1])
@@ -590,7 +590,7 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                         "Im(Z) Exp": fit_res["im_meas"],
                         "|Z| Exp": mod_meas,
                     })
-                    st.dataframe(df_out, height=350, use_container_width=True)
+                    st.dataframe(df_out, height=350, width='stretch')
 
                 with col_res_plt:
                     st.markdown("##### Residuos Relativos")
@@ -614,7 +614,7 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                         height=350,
                         margin=dict(t=30, b=30)
                     )
-                    st.plotly_chart(fig_res, use_container_width=True)
+                    st.plotly_chart(fig_res, width='stretch')
 
 
 # --- SECTION 4: COMPARADOR GLOBAL Y REPORTE ---
@@ -649,7 +649,7 @@ elif section == "4. Comparador Global y Reporte":
                     "R² Total": f"{res_f['metrics']['r2_total']:.4f}",
                 })
     
-    st.dataframe(pd.DataFrame(multi_results), use_container_width=True)
+    st.dataframe(pd.DataFrame(multi_results), width='stretch')
 
     st.markdown("---")
     st.subheader("Resumen Teórico del Trabajo Práctico")

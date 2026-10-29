@@ -5,9 +5,6 @@ __pycache__/
 *$py.class
 *.so
 
-# Datos pesados de laboratorio y datasets
-Data/*.mat
-Data/registros_EIS.mat
 
 # Archivos de sistema y logs del IDE
 .system_generated/

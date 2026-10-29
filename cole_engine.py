@@ -274,3 +274,59 @@ def fit_cole_model(
         "minus_im_meas": -im if sign_im == 1.0 else im,
         "sign_im_convention": "standard_negative" if sign_im == 1.0 else "inverted_positive",
     }
+
+
+def cole_inductive_impedance(f: np.ndarray, R0: float, Rinf: float, fc: float, alpha: float, L: float) -> np.ndarray:
+    """Cole model plus a series inductance L [H]: Z = Z_cole + j*omega*L (cables/equipment effect)."""
+    f = np.asarray(f, dtype=float)
+    return cole_impedance(f, R0, Rinf, fc, alpha) + 1j * 2.0 * np.pi * f * L
+
+
+def _model_stats(f, re, im_al, Z_al, k):
+    """Weighted SSE (same weights as fit_cole_model 'modulus'), AIC, BIC and RMSE in the aligned convention."""
+    w = np.sqrt(re**2 + im_al**2) + 1e-4
+    r = np.concatenate([(np.real(Z_al) - re) / w, (np.imag(Z_al) - im_al) / w])
+    n = len(r)
+    sse = float(np.sum(r**2))
+    rmse = float(np.sqrt(np.mean(np.concatenate([np.real(Z_al) - re, np.imag(Z_al) - im_al]) ** 2)))
+    return {"sse_w": sse, "aic": n * np.log(sse / n) + 2 * k, "bic": n * np.log(sse / n) + k * np.log(n), "rmse": rmse, "k": k}
+
+
+def compare_cole_models(f_meas: np.ndarray, re_meas: np.ndarray, im_meas: np.ndarray) -> Dict[str, Any]:
+    """
+    Fits Cole (4 params) and Cole + series inductance (5 params, L >= 0) to the same record with the same
+    weighting, and returns parameters, fitted curves and AIC/BIC (lower is better).
+    """
+    base = fit_cole_model(f_meas, re_meas, im_meas)
+    f, re, im = base["f_meas"], base["re_meas"], base["im_meas"]
+    sign_im = -1.0 if base["sign_im_convention"] == "inverted_positive" else 1.0
+    im_al = im * sign_im
+    p = base["params"]
+
+    Zc = cole_impedance(f, p["R0"], p["Rinf"], p["fc"], p["alpha"])
+    stats_c = _model_stats(f, re, im_al, Zc, 4)
+
+    w = np.sqrt(re**2 + im_al**2) + 1e-4
+
+    def resid(q):
+        Z = cole_inductive_impedance(f, q[0], q[1], q[2], q[3], q[4] * 1e-6)
+        return np.concatenate([(np.real(Z) - re) / w, (np.imag(Z) - im_al) / w])
+
+    lo = [0.01, 0.01, float(f.min() * 0.01), 0.05, 0.0]
+    hi = [float(re.max() * 10.0 + 1000.0), float(re.max() * 5.0 + 500.0), float(f.max() * 100.0), 1.0, 1000.0]
+    q0 = [p["R0"], p["Rinf"], p["fc"], p["alpha"], 0.01]
+    q0 = [float(np.clip(v, l * 1.1 + 1e-9, h * 0.9)) for v, l, h in zip(q0, lo, hi)]
+    res = least_squares(resid, q0, bounds=(lo, hi), method="trf", max_nfev=5000, x_scale="jac")
+    q = res.x
+    Zi = cole_inductive_impedance(f, q[0], q[1], q[2], q[3], q[4] * 1e-6)
+    stats_i = _model_stats(f, re, im_al, Zi, 5)
+
+    return {
+        "f_meas": f, "re_meas": re, "im_meas": im, "sign_im": sign_im,
+        "cole": {"params": p, "stats": stats_c, "Z": Zc},
+        "ind": {
+            "params": {"R0": float(q[0]), "Rinf": float(q[1]), "fc": float(q[2]), "alpha": float(q[3]), "L_uH": float(q[4])},
+            "stats": stats_i, "Z": Zi,
+        },
+        "delta_aic": float(stats_c["aic"] - stats_i["aic"]),  # > 0: inductive model better
+    }

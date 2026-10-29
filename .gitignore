@@ -16,3 +16,8 @@ Data/registros_EIS.mat
 Thumbs.db
 .idea/
 .vscode/
+
+.projectmem/events.jsonl
+.projectmem/watch.pid
+.projectmem/watch.log
+.projectmem/structure.json

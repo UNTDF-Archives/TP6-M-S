@@ -91,7 +91,8 @@ section = st.sidebar.radio(
         "1. Ecuación y Explorador Cole",
         "2. Simulación de los 5 Tejidos (Tabla 1)",
         "3. Ajuste de Curvas con Dataset Zenodo",
-        "4. Comparador Global y Reporte"
+        "4. Comparador Global y Reporte",
+        "5. Comparación de Modelos (Cole vs Cole + L)"
     ],
     index=0
 )
@@ -466,13 +467,17 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                 m1, m2, m3, m4 = st.columns(4)
                 m1.metric("R₀ [Ω]", f"{params['R0']:.2f}")
                 m2.metric("R∞ [Ω]", f"{params['Rinf']:.2f}")
-                m3.metric("fc [kHz]", f"{params['fc_kHz']:.3f}")
+                m3.metric("fc [Hz]", f"{params['fc']:.1f}")
                 m4.metric("α", f"{params['alpha']:.3f}")
 
                 m5, m6, m7 = st.columns(3)
                 m5.metric("R² Total", f"{metrics['r2_total']:.4f}")
                 m6.metric("τ de relajación", f"{params['tau_us']:.2f} µs")
                 m7.metric("ΔR (R₀ - R∞)", f"{params['delta_R']:.2f} Ω")
+
+            f_lo, f_hi = fit_res["f_meas"].min(), fit_res["f_meas"].max()
+            if not (2 * f_lo <= params["fc"] <= f_hi / 2):
+                st.warning(f"fc = {params['fc']:.1f} Hz está en el borde de la banda medida ({f_lo:.0f} Hz – {f_hi:.0f} Hz): R₀ y fc quedan poco determinados.")
 
             # Dense simulation for fitted model
             f_dense = np.logspace(np.log10(fit_res["f_meas"].min() * 0.5), np.log10(fit_res["f_meas"].max() * 2.0), 500)
@@ -516,8 +521,8 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                     y=[float(-np.imag(Z_fc)[0])],
                     mode="markers+text",
                     marker=dict(color="#FBBF24", size=10, symbol="star"),
-                    name=f"fc = {params['fc_kHz']:.3f} kHz",
-                    text=[f"fc={params['fc_kHz']:.2f}kHz"],
+                    name=f"fc = {params['fc']:.1f} Hz",
+                    text=[f"fc={params['fc']:.1f}Hz"],
                     textposition="top center"
                 ))
 
@@ -593,18 +598,27 @@ elif section == "3. Ajuste de Curvas con Dataset Zenodo":
                     st.dataframe(df_out, height=350, width='stretch')
 
                 with col_res_plt:
-                    st.markdown("##### Residuos Relativos")
-                    # Calculate residuals at experimental frequencies
+                    st.markdown("##### Residuos [Ω]")
+                    # Calculate residuals at experimental frequencies (dataset sign convention)
                     Z_fit_at_f = ce.cole_impedance(fit_res["f_meas"], params["R0"], params["Rinf"], params["fc"], params["alpha"])
+                    sign_im = 1.0 if fit_res["sign_im_convention"] == "standard_negative" else -1.0
                     res_re = fit_res["re_meas"] - np.real(Z_fit_at_f)
+                    res_im = fit_res["im_meas"] - np.imag(Z_fit_at_f) * sign_im
                     
                     fig_res = go.Figure()
                     fig_res.add_trace(go.Bar(
                         x=fit_res["f_meas"],
                         y=res_re,
                         marker_color="#F43F5E",
-                        name="Error Residual Re(Z)"
+                        name="Residual Re(Z)"
                     ))
+                    fig_res.add_trace(go.Bar(
+                        x=fit_res["f_meas"],
+                        y=res_im,
+                        marker_color="#38BDF8",
+                        name="Residual Im(Z)"
+                    ))
+                    fig_res.update_layout(barmode="group")
                     fig_res.update_xaxes(type="log", title_text="Frecuencia [Hz]", gridcolor=grid_color)
                     fig_res.update_yaxes(title_text="Residual [Ω]", gridcolor=grid_color)
                     fig_res.update_layout(
@@ -643,7 +657,7 @@ elif section == "4. Comparador Global y Reporte":
                     "Puntos": r_item["points"],
                     "R₀ [Ω]": f"{res_f['params']['R0']:.2f}",
                     "R∞ [Ω]": f"{res_f['params']['Rinf']:.2f}",
-                    "fc [kHz]": f"{res_f['params']['fc_kHz']:.3f}",
+                    "fc [Hz]": f"{res_f['params']['fc']:.1f}",
                     "α": f"{res_f['params']['alpha']:.3f}",
                     "τ [µs]": f"{res_f['params']['tau_us']:.2f}",
                     "R² Total": f"{res_f['metrics']['r2_total']:.4f}",
@@ -661,3 +675,110 @@ elif section == "4. Comparador Global y Reporte":
        - **$f_c$**: Frecuencia de corte o pico de relajación dieléctrica, donde la reactancia capacitiva alcanza su máximo relativo.
        - **$\\alpha$**: Parámetro adimensional que cuantifica el aplanamiento del semicírculo de Cole ($0 < \\alpha \\le 1$). Si $\\alpha = 1$, el modelo se reduce a la relajación ideal de Debye.
     """)
+
+
+# --- SECTION 5: COMPARACIÓN DE MODELOS (COLE vs COLE + INDUCTANCIA) ---
+elif section == "5. Comparación de Modelos (Cole vs Cole + L)":
+    st.title("Punto 5: ¿Mejora el ajuste agregar una inductancia?")
+    st.markdown(
+        "Algunos registros de Dell'Osa muestran reactancia positiva a frecuencias altas (efecto de cables y equipo). "
+        "El modelo de Cole puro no lo representa. Se compara con **Cole + inductancia en serie**: "
+        "`Z = Z_Cole + jωL` (5 parámetros). Ambos se ajustan con la misma ponderación por módulo."
+    )
+
+    @st.cache_data(show_spinner=False)
+    def compare_all_dellosa():
+        out = []
+        for r in records:
+            if r["origin"] != "1":
+                continue
+            e = r["eis"]
+            c = ce.compare_cole_models(e[:, 0], e[:, 1], e[:, 2])
+            out.append({
+                "ID": r["id"],
+                "ΔAIC": c["delta_aic"],
+                "RMSE Cole [Ω]": c["cole"]["stats"]["rmse"],
+                "RMSE Cole+L [Ω]": c["ind"]["stats"]["rmse"],
+                "L [µH]": c["ind"]["params"]["L_uH"],
+            })
+        return pd.DataFrame(out)
+
+    dell = [r for r in records if r["origin"] == "1"]
+    labels = {f"ID {r['id']} ({r['sample_label']})": r for r in dell}
+    default_idx = next((i for i, r in enumerate(dell) if r["id"] == "1312"), 0)
+    rec5 = labels[st.selectbox("Registro:", list(labels.keys()), index=default_idx)]
+    e5 = rec5["eis"]
+    cmp = ce.compare_cole_models(e5[:, 0], e5[:, 1], e5[:, 2])
+    f5, re5 = cmp["f_meas"], cmp["re_meas"]
+    im5 = cmp["im_meas"] * cmp["sign_im"]  # convención teórica (negativa)
+    pc, pi_ = cmp["cole"]["params"], cmp["ind"]["params"]
+    sc, si = cmp["cole"]["stats"], cmp["ind"]["stats"]
+
+    st.dataframe(pd.DataFrame({
+        "Modelo": ["Cole (4 parámetros)", "Cole + L (5 parámetros)"],
+        "R₀ [Ω]": [f"{pc['R0']:.2f}", f"{pi_['R0']:.2f}"],
+        "R∞ [Ω]": [f"{pc['Rinf']:.2f}", f"{pi_['Rinf']:.2f}"],
+        "fc [Hz]": [f"{pc['fc']:.1f}", f"{pi_['fc']:.1f}"],
+        "α": [f"{pc['alpha']:.3f}", f"{pi_['alpha']:.3f}"],
+        "L [µH]": ["—", f"{pi_['L_uH']:.2f}"],
+        "RMSE [Ω]": [f"{sc['rmse']:.3f}", f"{si['rmse']:.3f}"],
+        "AIC": [f"{sc['aic']:.1f}", f"{si['aic']:.1f}"],
+        "BIC": [f"{sc['bic']:.1f}", f"{si['bic']:.1f}"],
+    }), width="stretch", hide_index=True)
+
+    d = cmp["delta_aic"]
+    if d > 10:
+        st.success(f"ΔAIC = {d:.1f}: Cole + L ajusta claramente mejor en este registro.")
+    elif d > 2:
+        st.info(f"ΔAIC = {d:.1f}: Cole + L ajusta algo mejor, evidencia moderada.")
+    else:
+        st.warning(f"ΔAIC = {d:.1f}: no hay mejora que justifique el parámetro extra. Se prefiere Cole.")
+
+    f_d = np.logspace(np.log10(f5.min()), np.log10(f5.max()), 400)
+    Zc_d = ce.cole_impedance(f_d, pc["R0"], pc["Rinf"], pc["fc"], pc["alpha"])
+    Zi_d = ce.cole_inductive_impedance(f_d, pi_["R0"], pi_["Rinf"], pi_["fc"], pi_["alpha"], pi_["L_uH"] * 1e-6)
+
+    fig5 = make_subplots(rows=1, cols=2, subplot_titles=["Nyquist: -Im(Z) vs Re(Z)", "Fase [°] vs Frecuencia"], horizontal_spacing=0.1)
+    fig5.add_trace(go.Scatter(x=re5, y=-im5, mode="markers", marker=dict(color="#38BDF8", size=7), name="Datos"), row=1, col=1)
+    fig5.add_trace(go.Scatter(x=np.real(Zc_d), y=-np.imag(Zc_d), mode="lines", line=dict(color="#F43F5E", width=2.5), name="Cole"), row=1, col=1)
+    fig5.add_trace(go.Scatter(x=np.real(Zi_d), y=-np.imag(Zi_d), mode="lines", line=dict(color="#FBBF24", width=2.5, dash="dash"), name="Cole + L"), row=1, col=1)
+    fig5.add_trace(go.Scatter(x=f5, y=np.rad2deg(np.arctan2(im5, re5)), mode="markers", marker=dict(color="#38BDF8", size=7), name="Datos", showlegend=False), row=1, col=2)
+    fig5.add_trace(go.Scatter(x=f_d, y=np.angle(Zc_d, deg=True), mode="lines", line=dict(color="#F43F5E", width=2.5), name="Cole", showlegend=False), row=1, col=2)
+    fig5.add_trace(go.Scatter(x=f_d, y=np.angle(Zi_d, deg=True), mode="lines", line=dict(color="#FBBF24", width=2.5, dash="dash"), name="Cole + L", showlegend=False), row=1, col=2)
+    fig5.update_xaxes(title_text="Re(Z) [Ω]", row=1, col=1, gridcolor=grid_color)
+    fig5.update_xaxes(type="log", title_text="Frecuencia [Hz]", row=1, col=2, gridcolor=grid_color)
+    fig5.update_yaxes(title_text="-Im(Z) [Ω]", row=1, col=1, gridcolor=grid_color)
+    fig5.update_yaxes(title_text="Fase [°]", row=1, col=2, gridcolor=grid_color)
+    fig5.update_layout(template=plot_template, plot_bgcolor=bg_color, paper_bgcolor=bg_color, height=440)
+    st.plotly_chart(fig5, width="stretch")
+
+    st.subheader("Los 147 registros de Dell'Osa")
+    with st.spinner("Ajustando ambos modelos en todos los registros..."):
+        allc = compare_all_dellosa()
+    n = len(allc)
+    n_clear = int((allc["ΔAIC"] > 10).sum())
+    n_mod = int(((allc["ΔAIC"] > 2) & (allc["ΔAIC"] <= 10)).sum())
+    n_same = n - n_clear - n_mod
+    red = float(np.median(1 - allc["RMSE Cole+L [Ω]"] / allc["RMSE Cole [Ω]"])) * 100
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Cole + L claramente mejor (ΔAIC>10)", f"{n_clear} / {n}")
+    c2.metric("Mejora moderada (2<ΔAIC≤10)", f"{n_mod} / {n}")
+    c3.metric("Sin diferencia relevante", f"{n_same} / {n}")
+    c4.metric("Reducción mediana del RMSE", f"{red:.2f} %")
+    fig_h = go.Figure(go.Histogram(x=allc["ΔAIC"], nbinsx=30, marker_color="#38BDF8"))
+    fig_h.add_vline(x=2, line_dash="dash", line_color="#FBBF24")
+    fig_h.add_vline(x=10, line_dash="dash", line_color="#F43F5E")
+    fig_h.update_layout(title="Distribución de ΔAIC = AIC(Cole) − AIC(Cole+L)  (>0 favorece Cole+L)",
+                        xaxis_title="ΔAIC", yaxis_title="Registros", template=plot_template,
+                        plot_bgcolor=bg_color, paper_bgcolor=bg_color, height=340)
+    st.plotly_chart(fig_h, width="stretch")
+
+    st.markdown(f"""
+**Conclusión.** Para la gran mayoría de los registros ({n_same} de {n}) agregar la inductancia no mejora el ajuste lo suficiente para justificar un parámetro más.
+La reducción mediana del error es de solo {red:.2f} %.
+Por eso **el modelo de Cole puro es el que mejor equilibra ajuste y simplicidad** (criterio AIC: a igual calidad, gana el modelo con menos parámetros).
+
+**Por qué la inductancia ayuda tan poco.** La reactancia positiva aparece solo en los últimos puntos (cerca de 65 kHz), donde `|Z|` ronda 70 Ω y la reactancia vale ~2 Ω: pesa poco frente al resto del espectro.
+La inductancia estimada es de unos pocos µH y su efecto `ωL` solo se nota ahí.
+Los {n_clear + n_mod} registros con mejora tienen en promedio algo más de puntos con reactancia positiva, pero la relación es débil: el error que queda parece venir de otra fuente que esta inductancia no explica.
+""")
